@@ -9,16 +9,22 @@ let currentUser = null;
 let recommendations = [];
 let currentSongIndex = 0;
 let likedSongs = JSON.parse(localStorage.getItem('likedSongs') || '[]');
+let swipedCount = parseInt(localStorage.getItem('swipedCount') || '0');
 let isSwipingEnabled = true;
 
 // DOM Elements
-const loginScreen = document.getElementById('loginScreen');
-const mainApp = document.getElementById('mainApp');
+const loginSection = document.getElementById('loginSection');
+const appSection = document.getElementById('appSection');
 const spotifyLoginBtn = document.getElementById('spotifyLoginBtn');
-const cardStack = document.getElementById('cardStack');
-const loading = document.getElementById('loading');
-const userInfo = document.getElementById('userInfo');
-const likedCounter = document.getElementById('likedCounter');
+const loadingState = document.getElementById('loadingState');
+const cardContainer = document.getElementById('cardContainer');
+const userProfile = document.getElementById('userProfile');
+const userAvatar = document.getElementById('userAvatar');
+const userName = document.getElementById('userName');
+const likedCount = document.getElementById('likedCount');
+const swipedCountEl = document.getElementById('swipedCount');
+const discoveredCount = document.getElementById('discoveredCount');
+const recentLiked = document.getElementById('recentLiked');
 const rejectBtn = document.getElementById('rejectBtn');
 const likeBtn = document.getElementById('likeBtn');
 const likeIndicator = document.getElementById('likeIndicator');
@@ -26,7 +32,8 @@ const rejectIndicator = document.getElementById('rejectIndicator');
 
 // Initialize App
 window.addEventListener('DOMContentLoaded', () => {
-    updateLikedCounter();
+    updateStats();
+    updateRecentLiked();
     
     // Check if returning from Spotify auth
     const urlParams = new URLSearchParams(window.location.search);
@@ -83,11 +90,11 @@ async function exchangeCodeForToken(code) {
             initializeApp();
         } else {
             console.error('Failed to get access token:', data);
-            alert('Login failed. Please try again.');
+            showError('Login failed. Please make sure your redirect URI is properly configured in your Spotify app settings.');
         }
     } catch (error) {
         console.error('Auth error:', error);
-        alert('Login failed. Please try again.');
+        showError('Login failed. Please check your internet connection and try again.');
     }
 }
 
@@ -97,9 +104,9 @@ async function initializeApp() {
         await getCurrentUser();
         await getRecommendations();
         
-        loginScreen.style.display = 'none';
-        mainApp.style.display = 'block';
-        loading.style.display = 'none';
+        loginSection.style.display = 'none';
+        appSection.style.display = 'block';
+        loadingState.style.display = 'none';
         
         displayCurrentSong();
         setupSwipeListeners();
@@ -107,8 +114,16 @@ async function initializeApp() {
     } catch (error) {
         console.error('Failed to initialize app:', error);
         localStorage.removeItem('spotifyAccessToken');
-        alert('Session expired. Please login again.');
-        location.reload();
+        
+        if (error.message.includes('401')) {
+            showError('Session expired. Please login again.');
+        } else {
+            showError('Failed to load app. Please check your internet connection and try again.');
+        }
+        
+        setTimeout(() => {
+            location.reload();
+        }, 3000);
     }
 }
 
@@ -121,14 +136,15 @@ async function getCurrentUser() {
     });
     
     if (!response.ok) {
-        throw new Error('Failed to get user info');
+        throw new Error(`HTTP ${response.status}: Failed to get user info`);
     }
     
     currentUser = await response.json();
-    userInfo.innerHTML = `
-        <div class="user-name">Hi, ${currentUser.display_name}!</div>
-        <div>${currentUser.country}</div>
-    `;
+    
+    // Update user profile in navigation
+    userProfile.style.display = 'flex';
+    userAvatar.src = currentUser.images?.[0]?.url || getDefaultAvatar();
+    userName.textContent = currentUser.display_name;
 }
 
 async function getRecommendations() {
@@ -140,12 +156,26 @@ async function getRecommendations() {
             }
         });
         
-        const topTracksData = await topTracksResponse.json();
-        const seedTracks = topTracksData.items.map(track => track.id).slice(0, 5).join(',');
+        if (!topTracksResponse.ok) {
+            throw new Error(`HTTP ${topTracksResponse.status}: Failed to get top tracks`);
+        }
         
-        // Get recommendations based on top tracks
+        const topTracksData = await topTracksResponse.json();
+        
+        // If user has no top tracks, use some popular artists as seeds
+        let seedParam = '';
+        if (topTracksData.items && topTracksData.items.length > 0) {
+            const seedTracks = topTracksData.items.map(track => track.id).slice(0, 5).join(',');
+            seedParam = `seed_tracks=${seedTracks}`;
+        } else {
+            // Fallback: use popular artist seeds
+            const popularArtists = ['4NHQUGzhtTLFvgF5SZesLK', '1Xyo4u8uXC1ZmMpatF05PJ', '06HL4z0CvFAxyc27GXpf02']; // Tame Impala, The Weeknd, Taylor Swift
+            seedParam = `seed_artists=${popularArtists.join(',')}`;
+        }
+        
+        // Get recommendations based on seeds
         const recommendationsResponse = await fetch(
-            `https://api.spotify.com/v1/recommendations?seed_tracks=${seedTracks}&limit=50&market=${currentUser.country}`,
+            `https://api.spotify.com/v1/recommendations?${seedParam}&limit=50&market=${currentUser.country || 'US'}`,
             {
                 headers: {
                     'Authorization': 'Bearer ' + accessToken
@@ -153,17 +183,28 @@ async function getRecommendations() {
             }
         );
         
+        if (!recommendationsResponse.ok) {
+            throw new Error(`HTTP ${recommendationsResponse.status}: Failed to get recommendations`);
+        }
+        
         const recommendationsData = await recommendationsResponse.json();
         recommendations = recommendationsData.tracks.filter(track => 
             track.preview_url && !likedSongs.some(liked => liked.id === track.id)
         );
         
+        // If no recommendations with previews, show all recommendations
+        if (recommendations.length === 0) {
+            recommendations = recommendationsData.tracks.filter(track =>
+                !likedSongs.some(liked => liked.id === track.id)
+            );
+        }
+        
         currentSongIndex = 0;
+        updateStats();
         
     } catch (error) {
         console.error('Failed to get recommendations:', error);
-        // Fallback: use some default recommendations
-        recommendations = [];
+        throw error;
     }
 }
 
@@ -181,25 +222,29 @@ function displayCurrentSong() {
     const card = document.createElement('div');
     card.className = 'song-card';
     card.innerHTML = `
-        <img src="${song.album.images[0]?.url || getDefaultAlbumCover()}" alt="${song.album.name}" class="album-cover">
-        <div class="song-info">
+        <img src="${song.album.images[0]?.url || getDefaultAlbumCover()}" alt="${song.album.name}" class="song-card-image">
+        <div class="song-card-content">
             <div>
-                <div class="song-title">${song.name}</div>
-                <div class="song-artist">${song.artists.map(a => a.name).join(', ')}</div>
+                <div class="song-card-title">${truncateText(song.name, 40)}</div>
+                <div class="song-card-artist">${truncateText(song.artists.map(a => a.name).join(', '), 50)}</div>
             </div>
-            <div class="song-details">
-                <div class="song-genre">${song.album.album_type}</div>
-                <div class="song-popularity">${song.popularity}% popularity</div>
+            <div class="song-card-details">
+                <div class="song-card-genre">${capitalizeFirst(song.album.album_type)}</div>
+                <div class="song-card-popularity">${song.popularity}% popular</div>
             </div>
         </div>
     `;
     
-    cardStack.appendChild(card);
+    cardContainer.appendChild(card);
     setupCardSwipe(card);
 }
 
 function getDefaultAlbumCover() {
     return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDMwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjMjgyODI4Ii8+CjxwYXRoIGQ9Ik0xNTAgMjEwQzE4My4xMzcgMjEwIDIxMCAxODMuMTM3IDIxMCAxNTBDMjEwIDExNi44NjMgMTgzLjEzNyA5MCAxNTAgOTBDMTE2Ljg2MyA5MCA5MCAxMTYuODYzIDkwIDE1MEM5MCAxODMuMTM3IDExNi44NjMgMjEwIDE1MCAyMTBaIiBmaWxsPSIjMURCOTU0Ii8+CjxwYXRoIGQ9Ik0xMzIuNSAxMzVWMTY1SDE1N1YxMzVIMTMyLjVaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K';
+}
+
+function getDefaultAvatar() {
+    return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTYiIGN5PSIxNiIgcj0iMTYiIGZpbGw9IiMxREI5NTQiLz4KPHN2ZyB4PSI4IiB5PSI4IiB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPgo8cGF0aCBkPSJNMTIgMTJjMi4yMSAwIDQtMS43OSA0LTRzLTEuNzktNC00LTQtNDEuNzktNCA0IDEuNzkgNCA0IDQgek0xMiAxNGMtMi42NyAwLTggMS4zNC04IDR2MmgxNnYtMmMwLTIuNjYtNS4zMy00LTQiLz4KPC9zdmc+Cjwvc3ZnPgo=';
 }
 
 // Swipe Functionality
@@ -226,33 +271,37 @@ function setupCardSwipe(card) {
         isDragging = true;
         card.classList.add('dragging');
         
-        const clientX = e.clientX || e.touches[0].clientX;
-        const clientY = e.clientY || e.touches[0].clientY;
+        const clientX = e.clientX || e.touches?.[0]?.clientX;
+        const clientY = e.clientY || e.touches?.[0]?.clientY;
         
         startX = clientX;
         startY = clientY;
+        
+        // Prevent default to avoid scrolling on mobile
+        e.preventDefault();
     }
 
     function drag(e) {
         if (!isDragging || !isSwipingEnabled) return;
         e.preventDefault();
         
-        const clientX = e.clientX || e.touches[0].clientX;
-        const clientY = e.clientY || e.touches[0].clientY;
+        const clientX = e.clientX || e.touches?.[0]?.clientX;
+        const clientY = e.clientY || e.touches?.[0]?.clientY;
         
         currentX = clientX - startX;
         currentY = clientY - startY;
         
         const rotation = currentX * 0.1;
-        card.style.transform = `translate(${currentX}px, ${currentY}px) rotate(${rotation}deg)`;
+        const scale = 1 - Math.abs(currentX) * 0.0005;
+        card.style.transform = `translate(${currentX}px, ${currentY}px) rotate(${rotation}deg) scale(${scale})`;
         
-        // Show indicators
-        const opacity = Math.abs(currentX) / 100;
+        // Show indicators based on swipe direction
+        const opacity = Math.min(Math.abs(currentX) / 100, 1);
         if (currentX > 50) {
-            likeIndicator.style.opacity = Math.min(opacity, 1);
+            likeIndicator.style.opacity = opacity;
             rejectIndicator.style.opacity = 0;
         } else if (currentX < -50) {
-            rejectIndicator.style.opacity = Math.min(opacity, 1);
+            rejectIndicator.style.opacity = opacity;
             likeIndicator.style.opacity = 0;
         } else {
             likeIndicator.style.opacity = 0;
@@ -276,7 +325,7 @@ function setupCardSwipe(card) {
             const direction = currentX > 0 ? 'right' : 'left';
             swipeSong(direction);
         } else {
-            // Snap back
+            // Snap back to center
             card.style.transform = '';
             card.style.transition = 'transform 0.3s ease';
             setTimeout(() => {
@@ -296,12 +345,18 @@ function swipeSong(direction) {
     const card = document.querySelector('.song-card');
     const song = recommendations[currentSongIndex];
     
+    // Update swipe count
+    swipedCount++;
+    localStorage.setItem('swipedCount', swipedCount.toString());
+    
     if (direction === 'right') {
         card.classList.add('swiped-right');
         likeSong(song);
     } else {
         card.classList.add('swiped-left');
     }
+    
+    updateStats();
     
     setTimeout(() => {
         currentSongIndex++;
@@ -319,38 +374,92 @@ function likeSong(song) {
         album: song.album.name,
         image: song.album.images[0]?.url,
         preview_url: song.preview_url,
-        external_url: song.external_urls.spotify
+        external_url: song.external_urls.spotify,
+        dateAdded: new Date().toISOString()
     };
     
-    likedSongs.push(likedSong);
+    likedSongs.unshift(likedSong); // Add to beginning of array
+    if (likedSongs.length > 50) {
+        likedSongs = likedSongs.slice(0, 50); // Keep only last 50 liked songs
+    }
+    
     localStorage.setItem('likedSongs', JSON.stringify(likedSongs));
-    updateLikedCounter();
+    updateRecentLiked();
 }
 
-function updateLikedCounter() {
-    likedCounter.textContent = `♥ ${likedSongs.length} Liked`;
+// UI Management Functions
+function updateStats() {
+    likedCount.textContent = likedSongs.length;
+    swipedCountEl.textContent = swipedCount;
+    discoveredCount.textContent = Math.max(0, currentSongIndex);
 }
 
-// UI Management
+function updateRecentLiked() {
+    if (likedSongs.length === 0) {
+        recentLiked.innerHTML = '<p class="empty-state">Start swiping to see your liked songs!</p>';
+        return;
+    }
+    
+    const recentSongs = likedSongs.slice(0, 5); // Show only last 5
+    recentLiked.innerHTML = recentSongs.map(song => `
+        <div class="liked-song-item">
+            <img src="${song.image || getDefaultAlbumCover()}" alt="${song.album}" class="liked-song-cover">
+            <div class="liked-song-info">
+                <div class="liked-song-title">${truncateText(song.name, 20)}</div>
+                <div class="liked-song-artist">${truncateText(song.artist, 25)}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
 function showNoMoreSongs() {
-    cardStack.innerHTML = `
+    cardContainer.innerHTML = `
         <div class="no-more-songs">
-            <h3>🎉 You've reached the end!</h3>
-            <p>You've discovered all available songs based on your taste.</p>
-            <p>Check out your liked songs in your Spotify library!</p>
-            <button class="refresh-btn" onclick="refreshRecommendations()">Get More Songs</button>
+            <h3>🎉 Amazing taste in music!</h3>
+            <p>You've discovered ${swipedCount} songs and liked ${likedSongs.length} of them.</p>
+            <p>Your liked songs are saved and ready to explore.</p>
+            <button class="refresh-btn" onclick="refreshRecommendations()">Discover More Music</button>
         </div>
     `;
 }
 
 async function refreshRecommendations() {
-    loading.style.display = 'block';
-    cardStack.innerHTML = '';
-    cardStack.appendChild(loading);
+    loadingState.style.display = 'block';
+    cardContainer.innerHTML = '';
     
-    await getRecommendations();
-    loading.style.display = 'none';
-    displayCurrentSong();
+    try {
+        await getRecommendations();
+        loadingState.style.display = 'none';
+        displayCurrentSong();
+    } catch (error) {
+        loadingState.style.display = 'none';
+        showError('Failed to load new recommendations. Please try again.');
+    }
+}
+
+function showError(message) {
+    const errorDiv = document.createElement('div');
+    errorDiv.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #ff4458;
+        color: white;
+        padding: 1rem 2rem;
+        border-radius: 10px;
+        z-index: 9999;
+        text-align: center;
+        box-shadow: 0 10px 30px rgba(255, 68, 88, 0.3);
+    `;
+    errorDiv.textContent = message;
+    document.body.appendChild(errorDiv);
+    
+    setTimeout(() => {
+        if (errorDiv.parentNode) {
+            errorDiv.parentNode.removeChild(errorDiv);
+        }
+    }, 5000);
 }
 
 // Event Listeners Setup
@@ -360,9 +469,27 @@ function setupSwipeListeners() {
     
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'ArrowLeft') swipeSong('left');
-        if (e.key === 'ArrowRight') swipeSong('right');
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        
+        if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+            e.preventDefault();
+            swipeSong('left');
+        }
+        if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+            e.preventDefault();
+            swipeSong('right');
+        }
     });
+}
+
+// Utility Functions
+function truncateText(text, maxLength) {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength - 3) + '...';
+}
+
+function capitalizeFirst(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
 // Global Functions (for onclick handlers)
