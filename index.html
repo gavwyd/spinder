@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spinder - Discover Your Next Favorite Song</title>
     <link rel="stylesheet" href="styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
     <!-- Navigation Header -->
@@ -16,8 +16,6 @@
                 <span class="logo-text">Spinder</span>
             </div>
             <div class="nav-links">
-                <a href="#how-it-works">How It Works</a>
-                <a href="#about">About</a>
                 <div class="user-profile" id="userProfile" style="display: none;">
                     <img id="userAvatar" src="" alt="User" class="user-avatar">
                     <span id="userName" class="user-name"></span>
@@ -37,7 +35,7 @@
                     </h1>
                     <p class="hero-subtitle">
                         Swipe through personalized song recommendations based on your Spotify listening history. 
-                        Find your next favorite track with the addictive simplicity of swiping.
+                        Find your next favorite track and build your perfect playlist automatically.
                     </p>
                     <button id="spotifyLoginBtn" class="spotify-login-btn">
                         <svg class="spotify-icon" viewBox="0 0 24 24" fill="currentColor">
@@ -80,18 +78,20 @@
                 <!-- Sidebar -->
                 <aside class="sidebar">
                     <div class="stats-panel">
-                        <h3>Your Music Journey</h3>
-                        <div class="stat-item">
-                            <span class="stat-number" id="likedCount">0</span>
-                            <span class="stat-label">Songs Liked</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-number" id="swipedCount">0</span>
-                            <span class="stat-label">Songs Swiped</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-number" id="discoveredCount">0</span>
-                            <span class="stat-label">New Discoveries</span>
+                        <h3>Your Journey</h3>
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <span class="stat-number" id="likedCount">0</span>
+                                <span class="stat-label">Liked</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-number" id="swipedCount">0</span>
+                                <span class="stat-label">Swiped</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-number" id="discoveredCount">0</span>
+                                <span class="stat-label">Discovered</span>
+                            </div>
                         </div>
                     </div>
                     
@@ -104,14 +104,17 @@
                             <kbd>→</kbd> Like Song
                         </div>
                         <div class="control-hint">
-                            <span class="mouse-icon">🖱️</span> Drag to Swipe
+                            <span>🖱️</span> Drag to Swipe
                         </div>
                     </div>
 
                     <div class="liked-songs-panel">
-                        <h3>Recently Liked</h3>
+                        <h3>Recent Likes</h3>
                         <div id="recentLiked" class="recent-liked-list">
                             <p class="empty-state">Start swiping to see your liked songs!</p>
+                        </div>
+                        <div id="playlistStatus" class="playlist-status" style="display: none;">
+                            🎉 Playlist "Spinder Discoveries" created!
                         </div>
                     </div>
                 </aside>
@@ -120,7 +123,7 @@
                 <div class="swipe-area">
                     <div class="loading-state" id="loadingState">
                         <div class="loading-spinner"></div>
-                        <p>Loading your personalized recommendations...</p>
+                        <p class="loading-text">Loading your personalized recommendations...</p>
                     </div>
 
                     <div class="card-container" id="cardContainer">
@@ -160,39 +163,7 @@
                 </div>
             </div>
         </section>
-
-        <!-- How It Works Section -->
-        <section id="how-it-works" class="how-it-works">
-            <div class="section-container">
-                <h2>How Spinder Works</h2>
-                <div class="steps-grid">
-                    <div class="step">
-                        <div class="step-icon">🎵</div>
-                        <h3>Connect Spotify</h3>
-                        <p>Login with your Spotify account to access your music taste profile</p>
-                    </div>
-                    <div class="step">
-                        <div class="step-icon">🎯</div>
-                        <h3>Get Recommendations</h3>
-                        <p>We analyze your listening history to find songs you'll love</p>
-                    </div>
-                    <div class="step">
-                        <div class="step-icon">👆</div>
-                        <h3>Swipe & Discover</h3>
-                        <p>Swipe right to save songs, left to skip. It's that simple!</p>
-                    </div>
-                </div>
-            </div>
-        </section>
     </main>
-
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="footer-container">
-            <p>&copy; 2025 Spinder. Made with ♥ for music lovers.</p>
-            <p class="footer-disclaimer">This app uses the Spotify Web API. Spinder is not affiliated with Spotify.</p>
-        </div>
-    </footer>
 
     <script src="script.js"></script>
 </body>
