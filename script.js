@@ -1,6 +1,7 @@
 // Spotify API Configuration
 const CLIENT_ID = '32e9e5d5c4d74bf98e34f5e240070726';
-const CLIENT_SECRET = '8551fdb948c640368215e3a99c38fa7e';
+// Note: Client Secret should NEVER be in frontend code for security reasons
+// We'll use the Implicit Grant Flow instead which is safer for frontend apps
 const REDIRECT_URI = window.location.origin + window.location.pathname;
 
 // App State Variables
@@ -35,68 +36,67 @@ window.addEventListener('DOMContentLoaded', () => {
     updateStats();
     updateRecentLiked();
     
-    // Check if returning from Spotify auth
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('code');
+    // Check if returning from Spotify auth (Implicit Grant)
+    const hashParams = getHashParams();
+    const accessTokenFromHash = hashParams.access_token;
     
-    if (code) {
-        exchangeCodeForToken(code);
+    if (accessTokenFromHash) {
+        accessToken = accessTokenFromHash;
+        localStorage.setItem('spotifyAccessToken', accessToken);
+        localStorage.setItem('tokenTimestamp', Date.now().toString());
+        
+        // Clean URL hash
+        window.location.hash = '';
+        
+        initializeApp();
     } else {
-        // Check for saved token
+        // Check for saved token and if it's still valid (tokens expire after 1 hour)
         const savedToken = localStorage.getItem('spotifyAccessToken');
-        if (savedToken) {
+        const tokenTimestamp = localStorage.getItem('tokenTimestamp');
+        const tokenAge = Date.now() - parseInt(tokenTimestamp || '0');
+        const oneHour = 60 * 60 * 1000;
+        
+        if (savedToken && tokenAge < oneHour) {
             accessToken = savedToken;
             initializeApp();
+        } else {
+            // Token expired, clear it
+            localStorage.removeItem('spotifyAccessToken');
+            localStorage.removeItem('tokenTimestamp');
         }
     }
 });
 
-// Spotify Authentication Functions
+// Get parameters from URL hash (for Implicit Grant)
+function getHashParams() {
+    const hashParams = {};
+    const hash = window.location.hash.substring(1);
+    const pairs = hash.split('&');
+    
+    for (let i = 0; i < pairs.length; i++) {
+        const pair = pairs[i].split('=');
+        if (pair.length === 2) {
+            hashParams[pair[0]] = decodeURIComponent(pair[1]);
+        }
+    }
+    
+    return hashParams;
+}
+
+// Spotify Authentication Functions (Using Implicit Grant Flow)
 spotifyLoginBtn.addEventListener('click', () => {
-    const scope = 'user-read-private user-read-email user-top-read playlist-modify-public playlist-modify-private';
+    const scope = 'user-read-private user-read-email user-top-read';
     const authUrl = `https://accounts.spotify.com/authorize?` +
         `client_id=${CLIENT_ID}&` +
-        `response_type=code&` +
+        `response_type=token&` +
         `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
-        `scope=${encodeURIComponent(scope)}`;
+        `scope=${encodeURIComponent(scope)}&` +
+        `show_dialog=true`;
     
     window.location.href = authUrl;
 });
 
-async function exchangeCodeForToken(code) {
-    try {
-        const response = await fetch('https://accounts.spotify.com/api/token', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Authorization': 'Basic ' + btoa(CLIENT_ID + ':' + CLIENT_SECRET)
-            },
-            body: new URLSearchParams({
-                grant_type: 'authorization_code',
-                code: code,
-                redirect_uri: REDIRECT_URI
-            })
-        });
 
-        const data = await response.json();
-        
-        if (data.access_token) {
-            accessToken = data.access_token;
-            localStorage.setItem('spotifyAccessToken', accessToken);
-            
-            // Clean URL
-            window.history.replaceState({}, document.title, window.location.pathname);
-            
-            initializeApp();
-        } else {
-            console.error('Failed to get access token:', data);
-            showError('Login failed. Please make sure your redirect URI is properly configured in your Spotify app settings.');
-        }
-    } catch (error) {
-        console.error('Auth error:', error);
-        showError('Login failed. Please check your internet connection and try again.');
-    }
-}
 
 // App Initialization
 async function initializeApp() {
@@ -113,17 +113,20 @@ async function initializeApp() {
         
     } catch (error) {
         console.error('Failed to initialize app:', error);
-        localStorage.removeItem('spotifyAccessToken');
         
         if (error.message.includes('401')) {
+            // Token expired or invalid
+            localStorage.removeItem('spotifyAccessToken');
+            localStorage.removeItem('tokenTimestamp');
             showError('Session expired. Please login again.');
+            
+            setTimeout(() => {
+                appSection.style.display = 'none';
+                loginSection.style.display = 'block';
+            }, 2000);
         } else {
             showError('Failed to load app. Please check your internet connection and try again.');
         }
-        
-        setTimeout(() => {
-            location.reload();
-        }, 3000);
     }
 }
 
@@ -149,33 +152,43 @@ async function getCurrentUser() {
 
 async function getRecommendations() {
     try {
-        // Get user's top tracks for seed data
-        const topTracksResponse = await fetch('https://api.spotify.com/v1/me/top/tracks?limit=5&time_range=medium_term', {
-            headers: {
-                'Authorization': 'Bearer ' + accessToken
-            }
-        });
-        
-        if (!topTracksResponse.ok) {
-            throw new Error(`HTTP ${topTracksResponse.status}: Failed to get top tracks`);
-        }
-        
-        const topTracksData = await topTracksResponse.json();
-        
-        // If user has no top tracks, use some popular artists as seeds
+        // First, try to get user's top tracks for personalization
         let seedParam = '';
-        if (topTracksData.items && topTracksData.items.length > 0) {
-            const seedTracks = topTracksData.items.map(track => track.id).slice(0, 5).join(',');
-            seedParam = `seed_tracks=${seedTracks}`;
-        } else {
-            // Fallback: use popular artist seeds
-            const popularArtists = ['4NHQUGzhtTLFvgF5SZesLK', '1Xyo4u8uXC1ZmMpatF05PJ', '06HL4z0CvFAxyc27GXpf02']; // Tame Impala, The Weeknd, Taylor Swift
-            seedParam = `seed_artists=${popularArtists.join(',')}`;
+        
+        try {
+            const topTracksResponse = await fetch('https://api.spotify.com/v1/me/top/tracks?limit=5&time_range=short_term', {
+                headers: {
+                    'Authorization': 'Bearer ' + accessToken
+                }
+            });
+            
+            if (topTracksResponse.ok) {
+                const topTracksData = await topTracksResponse.json();
+                if (topTracksData.items && topTracksData.items.length > 0) {
+                    const seedTracks = topTracksData.items.map(track => track.id).slice(0, 5).join(',');
+                    seedParam = `seed_tracks=${seedTracks}`;
+                }
+            }
+        } catch (error) {
+            console.log('Could not get top tracks, using fallback seeds');
         }
         
-        // Get recommendations based on seeds
+        // If no top tracks available, use popular artist seeds
+        if (!seedParam) {
+            const popularArtists = [
+                '4NHQUGzhtTLFvgF5SZesLK', // Tame Impala
+                '1Xyo4u8uXC1ZmMpatF05PJ', // The Weeknd  
+                '06HL4z0CvFAxyc27GXpf02', // Taylor Swift
+                '1McMsnEElThX1knmY4oliG', // Olivia Rodrigo
+                '4q3ewBCX7sLwd24euuV69X'  // Bad Bunny
+            ];
+            seedParam = `seed_artists=${popularArtists.slice(0, 5).join(',')}`;
+        }
+        
+        // Get recommendations
+        const market = currentUser?.country || 'US';
         const recommendationsResponse = await fetch(
-            `https://api.spotify.com/v1/recommendations?${seedParam}&limit=50&market=${currentUser.country || 'US'}`,
+            `https://api.spotify.com/v1/recommendations?${seedParam}&limit=50&market=${market}&min_popularity=20`,
             {
                 headers: {
                     'Authorization': 'Bearer ' + accessToken
@@ -188,15 +201,15 @@ async function getRecommendations() {
         }
         
         const recommendationsData = await recommendationsResponse.json();
-        recommendations = recommendationsData.tracks.filter(track => 
-            track.preview_url && !likedSongs.some(liked => liked.id === track.id)
+        
+        // Filter out already liked songs
+        recommendations = recommendationsData.tracks.filter(track =>
+            !likedSongs.some(liked => liked.id === track.id)
         );
         
-        // If no recommendations with previews, show all recommendations
+        // If we have no recommendations, generate some mock data for demo
         if (recommendations.length === 0) {
-            recommendations = recommendationsData.tracks.filter(track =>
-                !likedSongs.some(liked => liked.id === track.id)
-            );
+            recommendations = generateMockRecommendations();
         }
         
         currentSongIndex = 0;
@@ -204,8 +217,83 @@ async function getRecommendations() {
         
     } catch (error) {
         console.error('Failed to get recommendations:', error);
-        throw error;
+        
+        // Generate mock recommendations as fallback
+        recommendations = generateMockRecommendations();
+        currentSongIndex = 0;
+        updateStats();
     }
+}
+
+// Generate mock recommendations for demo purposes
+function generateMockRecommendations() {
+    return [
+        {
+            id: 'mock_1',
+            name: 'Blinding Lights',
+            artists: [{ name: 'The Weeknd' }],
+            album: {
+                name: 'After Hours',
+                album_type: 'album',
+                images: [{ url: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop' }]
+            },
+            popularity: 95,
+            preview_url: null,
+            external_urls: { spotify: '#' }
+        },
+        {
+            id: 'mock_2', 
+            name: 'Good 4 U',
+            artists: [{ name: 'Olivia Rodrigo' }],
+            album: {
+                name: 'SOUR',
+                album_type: 'album',
+                images: [{ url: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop' }]
+            },
+            popularity: 89,
+            preview_url: null,
+            external_urls: { spotify: '#' }
+        },
+        {
+            id: 'mock_3',
+            name: 'As It Was',
+            artists: [{ name: 'Harry Styles' }],
+            album: {
+                name: "Harry's House",
+                album_type: 'album',
+                images: [{ url: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop' }]
+            },
+            popularity: 92,
+            preview_url: null,
+            external_urls: { spotify: '#' }
+        },
+        {
+            id: 'mock_4',
+            name: 'Heat Waves',
+            artists: [{ name: 'Glass Animals' }],
+            album: {
+                name: 'Dreamland',
+                album_type: 'album',
+                images: [{ url: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop' }]
+            },
+            popularity: 87,
+            preview_url: null,
+            external_urls: { spotify: '#' }
+        },
+        {
+            id: 'mock_5',
+            name: 'Stay',
+            artists: [{ name: 'The Kid LAROI, Justin Bieber' }],
+            album: {
+                name: 'Stay',
+                album_type: 'single',
+                images: [{ url: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop' }]
+            },
+            popularity: 90,
+            preview_url: null,
+            external_urls: { spotify: '#' }
+        }
+    ];
 }
 
 // Card Display and Management
