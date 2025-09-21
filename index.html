@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spinder - Discover Your Next Favorite Song</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">🎵 Spinder</div>
+            <div class="tagline">Swipe Your Way to New Music</div>
+        </div>
+
+        <!-- Login Screen -->
+        <div id="loginScreen" class="login-screen">
+            <h2 class="login-title">Welcome to Spinder!</h2>
+            <p class="login-subtitle">
+                Connect your Spotify account to discover new songs based on your music taste. 
+                Swipe right to save songs you love, left to pass.
+            </p>
+            <button id="spotifyLoginBtn" class="spotify-login-btn">
+                <span>🎵</span>
+                Login with Spotify
+            </button>
+        </div>
+
+        <!-- Main App -->
+        <div id="mainApp" class="main-app">
+            <div class="user-info" id="userInfo"></div>
+            <div class="liked-counter" id="likedCounter">♥ 0 Liked</div>
+            
+            <div class="card-stack" id="cardStack">
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>Loading your personalized recommendations...</p>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="action-btn reject-btn" id="rejectBtn">✕</button>
+                <button class="action-btn like-btn" id="likeBtn">♥</button>
+            </div>
+
+            <div class="swipe-indicator like-indicator" id="likeIndicator">LOVE</div>
+            <div class="swipe-indicator reject-indicator" id="rejectIndicator">NOPE</div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
