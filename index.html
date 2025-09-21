@@ -5,49 +5,194 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spinder - Discover Your Next Favorite Song</title>
     <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <div class="logo">🎵 Spinder</div>
-            <div class="tagline">Swipe Your Way to New Music</div>
-        </div>
-
-        <!-- Login Screen -->
-        <div id="loginScreen" class="login-screen">
-            <h2 class="login-title">Welcome to Spinder!</h2>
-            <p class="login-subtitle">
-                Connect your Spotify account to discover new songs based on your music taste. 
-                Swipe right to save songs you love, left to pass.
-            </p>
-            <button id="spotifyLoginBtn" class="spotify-login-btn">
-                <span>🎵</span>
-                Login with Spotify
-            </button>
-        </div>
-
-        <!-- Main App -->
-        <div id="mainApp" class="main-app">
-            <div class="user-info" id="userInfo"></div>
-            <div class="liked-counter" id="likedCounter">♥ 0 Liked</div>
-            
-            <div class="card-stack" id="cardStack">
-                <div class="loading" id="loading">
-                    <div class="spinner"></div>
-                    <p>Loading your personalized recommendations...</p>
+    <!-- Navigation Header -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <span class="logo-icon">🎵</span>
+                <span class="logo-text">Spinder</span>
+            </div>
+            <div class="nav-links">
+                <a href="#how-it-works">How It Works</a>
+                <a href="#about">About</a>
+                <div class="user-profile" id="userProfile" style="display: none;">
+                    <img id="userAvatar" src="" alt="User" class="user-avatar">
+                    <span id="userName" class="user-name"></span>
                 </div>
             </div>
-
-            <div class="action-buttons">
-                <button class="action-btn reject-btn" id="rejectBtn">✕</button>
-                <button class="action-btn like-btn" id="likeBtn">♥</button>
-            </div>
-
-            <div class="swipe-indicator like-indicator" id="likeIndicator">LOVE</div>
-            <div class="swipe-indicator reject-indicator" id="rejectIndicator">NOPE</div>
         </div>
-    </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Login/Landing Section -->
+        <section id="loginSection" class="login-section">
+            <div class="hero-container">
+                <div class="hero-content">
+                    <h1 class="hero-title">
+                        Discover Music Like Never Before
+                    </h1>
+                    <p class="hero-subtitle">
+                        Swipe through personalized song recommendations based on your Spotify listening history. 
+                        Find your next favorite track with the addictive simplicity of swiping.
+                    </p>
+                    <button id="spotifyLoginBtn" class="spotify-login-btn">
+                        <svg class="spotify-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.062 14.615c-.193.324-.614.426-.938.232-2.57-1.569-5.803-1.926-9.608-1.054-.367.084-.732-.155-.816-.522-.084-.366.155-.732.522-.815 4.18-.958 7.757-.546 10.716 1.221.324.193.427.614.233.938l-.001-.001zm1.34-2.983c-.243.394-.758.517-1.15.273-2.943-1.81-7.425-2.33-10.909-1.275-.445.134-.915-.134-1.049-.578-.135-.445.134-.915.578-1.05 3.986-1.207 8.953-.622 12.257 1.455.394.243.518.758.274 1.15l-.001.025zm.116-3.104C14.893 8.886 8.686 8.665 5.051 9.87c-.532.177-1.095-.111-1.272-.643-.177-.532.111-1.095.643-1.272 4.202-1.393 10.976-1.127 15.191 1.31.485.281.651.904.37 1.389-.281.485-.904.651-1.389.37h-.076z"/>
+                        </svg>
+                        Connect with Spotify
+                    </button>
+                </div>
+                <div class="hero-visual">
+                    <div class="demo-cards">
+                        <div class="demo-card card-1">
+                            <div class="demo-album"></div>
+                            <div class="demo-info">
+                                <div class="demo-title"></div>
+                                <div class="demo-artist"></div>
+                            </div>
+                        </div>
+                        <div class="demo-card card-2">
+                            <div class="demo-album"></div>
+                            <div class="demo-info">
+                                <div class="demo-title"></div>
+                                <div class="demo-artist"></div>
+                            </div>
+                        </div>
+                        <div class="demo-card card-3">
+                            <div class="demo-album"></div>
+                            <div class="demo-info">
+                                <div class="demo-title"></div>
+                                <div class="demo-artist"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- App Section -->
+        <section id="appSection" class="app-section" style="display: none;">
+            <div class="app-container">
+                <!-- Sidebar -->
+                <aside class="sidebar">
+                    <div class="stats-panel">
+                        <h3>Your Music Journey</h3>
+                        <div class="stat-item">
+                            <span class="stat-number" id="likedCount">0</span>
+                            <span class="stat-label">Songs Liked</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number" id="swipedCount">0</span>
+                            <span class="stat-label">Songs Swiped</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number" id="discoveredCount">0</span>
+                            <span class="stat-label">New Discoveries</span>
+                        </div>
+                    </div>
+                    
+                    <div class="controls-panel">
+                        <h3>Controls</h3>
+                        <div class="control-hint">
+                            <kbd>←</kbd> Skip Song
+                        </div>
+                        <div class="control-hint">
+                            <kbd>→</kbd> Like Song
+                        </div>
+                        <div class="control-hint">
+                            <span class="mouse-icon">🖱️</span> Drag to Swipe
+                        </div>
+                    </div>
+
+                    <div class="liked-songs-panel">
+                        <h3>Recently Liked</h3>
+                        <div id="recentLiked" class="recent-liked-list">
+                            <p class="empty-state">Start swiping to see your liked songs!</p>
+                        </div>
+                    </div>
+                </aside>
+
+                <!-- Main Swipe Area -->
+                <div class="swipe-area">
+                    <div class="loading-state" id="loadingState">
+                        <div class="loading-spinner"></div>
+                        <p>Loading your personalized recommendations...</p>
+                    </div>
+
+                    <div class="card-container" id="cardContainer">
+                        <!-- Song cards will be inserted here -->
+                    </div>
+
+                    <div class="action-controls">
+                        <button class="action-button reject-button" id="rejectBtn" title="Skip Song">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                            </svg>
+                        </button>
+                        <button class="action-button like-button" id="likeBtn" title="Like Song">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Swipe Indicators -->
+                    <div class="swipe-indicator like-indicator" id="likeIndicator">
+                        <div class="indicator-content">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                            </svg>
+                            <span>LOVE</span>
+                        </div>
+                    </div>
+                    <div class="swipe-indicator reject-indicator" id="rejectIndicator">
+                        <div class="indicator-content">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                            </svg>
+                            <span>SKIP</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- How It Works Section -->
+        <section id="how-it-works" class="how-it-works">
+            <div class="section-container">
+                <h2>How Spinder Works</h2>
+                <div class="steps-grid">
+                    <div class="step">
+                        <div class="step-icon">🎵</div>
+                        <h3>Connect Spotify</h3>
+                        <p>Login with your Spotify account to access your music taste profile</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-icon">🎯</div>
+                        <h3>Get Recommendations</h3>
+                        <p>We analyze your listening history to find songs you'll love</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-icon">👆</div>
+                        <h3>Swipe & Discover</h3>
+                        <p>Swipe right to save songs, left to skip. It's that simple!</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-container">
+            <p>&copy; 2025 Spinder. Made with ♥ for music lovers.</p>
+            <p class="footer-disclaimer">This app uses the Spotify Web API. Spinder is not affiliated with Spotify.</p>
+        </div>
+    </footer>
 
     <script src="script.js"></script>
 </body>
