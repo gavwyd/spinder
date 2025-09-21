@@ -5,20 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spinder - Discover Your Next Favorite Song</title>
     <link rel="stylesheet" href="styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 </head>
 <body>
     <!-- Navigation Header -->
     <nav class="navbar">
         <div class="nav-container">
             <div class="nav-logo">
-                <span class="logo-icon">🎵</span>
+                <div class="logo-icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.062 14.615c-.193.324-.614.426-.938.232-2.57-1.569-5.803-1.926-9.608-1.054-.367.084-.732-.155-.816-.522-.084-.366.155-.732.522-.815 4.18-.958 7.757-.546 10.716 1.221.324.193.427.614.233.938zm1.34-2.983c-.243.394-.758.517-1.15.273-2.943-1.81-7.425-2.33-10.909-1.275-.445.134-.915-.134-1.049-.578-.135-.445.134-.915.578-1.05 3.986-1.207 8.953-.622 12.257 1.455.394.243.518.758.274 1.15zm.116-3.104C14.893 8.886 8.686 8.665 5.051 9.87c-.532.177-1.095-.111-1.272-.643-.177-.532.111-1.095.643-1.272 4.202-1.393 10.976-1.127 15.191 1.31.485.281.651.904.37 1.389-.281.485-.904.651-1.389.37z"/>
+                    </svg>
+                </div>
                 <span class="logo-text">Spinder</span>
             </div>
             <div class="nav-links">
                 <div class="user-profile" id="userProfile" style="display: none;">
                     <img id="userAvatar" src="" alt="User" class="user-avatar">
                     <span id="userName" class="user-name"></span>
+                    <button id="logoutBtn" class="logout-btn">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M16 17v-3H9v-4h7V7l5 5-5 5M14 2a2 2 0 012 2v2h-2V4H5v16h9v-2h2v2a2 2 0 01-2 2H5a2 2 0 01-2-2V4a2 2 0 012-2h9z"/>
+                        </svg>
+                    </button>
                 </div>
             </div>
         </div>
@@ -31,11 +40,11 @@
             <div class="hero-container">
                 <div class="hero-content">
                     <h1 class="hero-title">
-                        Discover Music Like Never Before
+                        Swipe Through Music Like Never Before
                     </h1>
                     <p class="hero-subtitle">
-                        Swipe through personalized song recommendations based on your Spotify listening history. 
-                        Find your next favorite track and build your perfect playlist automatically.
+                        Discover personalized song recommendations based on your Spotify listening history. 
+                        Swipe right to love, left to skip. Build your perfect playlist automatically.
                     </p>
                     <button id="spotifyLoginBtn" class="spotify-login-btn">
                         <svg class="spotify-icon" viewBox="0 0 24 24" fill="currentColor">
@@ -45,26 +54,14 @@
                     </button>
                 </div>
                 <div class="hero-visual">
-                    <div class="demo-cards">
-                        <div class="demo-card card-1">
-                            <div class="demo-album"></div>
-                            <div class="demo-info">
-                                <div class="demo-title"></div>
-                                <div class="demo-artist"></div>
-                            </div>
-                        </div>
-                        <div class="demo-card card-2">
-                            <div class="demo-album"></div>
-                            <div class="demo-info">
-                                <div class="demo-title"></div>
-                                <div class="demo-artist"></div>
-                            </div>
-                        </div>
-                        <div class="demo-card card-3">
-                            <div class="demo-album"></div>
-                            <div class="demo-info">
-                                <div class="demo-title"></div>
-                                <div class="demo-artist"></div>
+                    <div class="demo-phone">
+                        <div class="phone-screen">
+                            <div class="demo-card active">
+                                <div class="demo-album-art"></div>
+                                <div class="demo-song-info">
+                                    <div class="demo-title"></div>
+                                    <div class="demo-artist"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -75,46 +72,37 @@
         <!-- App Section -->
         <section id="appSection" class="app-section" style="display: none;">
             <div class="app-container">
-                <!-- Sidebar -->
-                <aside class="sidebar">
+                <!-- Left Sidebar -->
+                <aside class="sidebar left-sidebar">
                     <div class="stats-panel">
-                        <h3>Your Journey</h3>
+                        <h3>Your Discovery Journey</h3>
                         <div class="stats-grid">
                             <div class="stat-item">
                                 <span class="stat-number" id="likedCount">0</span>
-                                <span class="stat-label">Liked</span>
+                                <span class="stat-label">Loved</span>
                             </div>
                             <div class="stat-item">
-                                <span class="stat-number" id="swipedCount">0</span>
-                                <span class="stat-label">Swiped</span>
+                                <span class="stat-number" id="passedCount">0</span>
+                                <span class="stat-label">Passed</span>
                             </div>
                             <div class="stat-item">
                                 <span class="stat-number" id="discoveredCount">0</span>
-                                <span class="stat-label">Discovered</span>
+                                <span class="stat-label">Explored</span>
                             </div>
                         </div>
                     </div>
                     
                     <div class="controls-panel">
-                        <h3>Controls</h3>
+                        <h3>How to Use</h3>
                         <div class="control-hint">
-                            <kbd>←</kbd> Skip Song
-                        </div>
-                        <div class="control-hint">
-                            <kbd>→</kbd> Like Song
+                            <kbd>←</kbd> <span>Skip Track</span>
                         </div>
                         <div class="control-hint">
-                            <span>🖱️</span> Drag to Swipe
+                            <kbd>→</kbd> <span>Love Track</span>
                         </div>
-                    </div>
-
-                    <div class="liked-songs-panel">
-                        <h3>Recent Likes</h3>
-                        <div id="recentLiked" class="recent-liked-list">
-                            <p class="empty-state">Start swiping to see your liked songs!</p>
-                        </div>
-                        <div id="playlistStatus" class="playlist-status" style="display: none;">
-                            🎉 Playlist "Spinder Discoveries" created!
+                        <div class="control-hint">
+                            <div class="mouse-icon">🖱️</div>
+                            <span>Drag to Swipe</span>
                         </div>
                     </div>
                 </aside>
@@ -122,47 +110,83 @@
                 <!-- Main Swipe Area -->
                 <div class="swipe-area">
                     <div class="loading-state" id="loadingState">
-                        <div class="loading-spinner"></div>
-                        <p class="loading-text">Loading your personalized recommendations...</p>
+                        <div class="loading-animation">
+                            <div class="loading-spinner"></div>
+                            <div class="loading-dots">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                        </div>
+                        <h3>Analyzing Your Taste</h3>
+                        <p class="loading-text">Finding songs you'll love based on your listening history...</p>
                     </div>
 
-                    <div class="card-container" id="cardContainer">
+                    <div class="card-stack" id="cardStack">
                         <!-- Song cards will be inserted here -->
                     </div>
 
                     <div class="action-controls">
-                        <button class="action-button reject-button" id="rejectBtn" title="Skip Song">
+                        <button class="action-button skip-button" id="skipBtn" title="Skip Song (←)">
                             <svg viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
                             </svg>
                         </button>
-                        <button class="action-button like-button" id="likeBtn" title="Like Song">
+                        <button class="action-button love-button" id="loveBtn" title="Love Song (→)">
                             <svg viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
                             </svg>
                         </button>
                     </div>
 
-                    <!-- Swipe Indicators -->
-                    <div class="swipe-indicator like-indicator" id="likeIndicator">
-                        <div class="indicator-content">
+                    <!-- Swipe Feedback -->
+                    <div class="swipe-indicator love-indicator" id="loveIndicator">
+                        <div class="indicator-icon">
                             <svg viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
                             </svg>
-                            <span>LOVE</span>
                         </div>
+                        <span>LOVE</span>
                     </div>
-                    <div class="swipe-indicator reject-indicator" id="rejectIndicator">
-                        <div class="indicator-content">
+                    
+                    <div class="swipe-indicator skip-indicator" id="skipIndicator">
+                        <div class="indicator-icon">
                             <svg viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
                             </svg>
-                            <span>SKIP</span>
                         </div>
+                        <span>SKIP</span>
                     </div>
                 </div>
+
+                <!-- Right Sidebar -->
+                <aside class="sidebar right-sidebar">
+                    <div class="playlist-panel">
+                        <h3>Your Discoveries</h3>
+                        <div id="playlistStatus" class="playlist-status" style="display: none;">
+                            <div class="status-icon">✨</div>
+                            <span>Playlist "Spinder Discoveries" ready!</span>
+                        </div>
+                        <div id="recentLoved" class="recent-loved-list">
+                            <div class="empty-state">
+                                <div class="empty-icon">💝</div>
+                                <p>Songs you love will appear here</p>
+                                <span>Start swiping to build your collection!</span>
+                            </div>
+                        </div>
+                        <button id="openPlaylistBtn" class="open-playlist-btn" style="display: none;">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.062 14.615c-.193.324-.614.426-.938.232-2.57-1.569-5.803-1.926-9.608-1.054-.367.084-.732-.155-.816-.522-.084-.366.155-.732.522-.815 4.18-.958 7.757-.546 10.716 1.221.324.193.427.614.233.938zm1.34-2.983c-.243.394-.758.517-1.15.273-2.943-1.81-7.425-2.33-10.909-1.275-.445.134-.915-.134-1.049-.578-.135-.445.134-.915.578-1.05 3.986-1.207 8.953-.622 12.257 1.455.394.243.518.758.274 1.15zm.116-3.104C14.893 8.886 8.686 8.665 5.051 9.87c-.532.177-1.095-.111-1.272-.643-.177-.532.111-1.095.643-1.272 4.202-1.393 10.976-1.127 15.191 1.31.485.281.651.904.37 1.389-.281.485-.904.651-1.389.37z"/>
+                            </svg>
+                            Open in Spotify
+                        </button>
+                    </div>
+                </aside>
             </div>
         </section>
+
+        <!-- Toast Notifications -->
+        <div id="toastContainer" class="toast-container"></div>
     </main>
 
     <script src="script.js"></script>
