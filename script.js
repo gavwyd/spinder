@@ -312,56 +312,74 @@ async function loadRecommendations() {
         const spotify = new SpotifyAPI(appState.accessToken);
         let seedTracks = [];
         let seedArtists = [];
+        let hasUserData = false;
         
         // Try to get user's top tracks for personalized recommendations
         try {
-            const topTracks = await spotify.getTopTracks('medium_term', 3);
+            const topTracks = await spotify.getTopTracks('medium_term', 5);
             if (topTracks.items && topTracks.items.length > 0) {
-                seedTracks = topTracks.items.map(track => track.id).slice(0, 3);
+                seedTracks = topTracks.items.map(track => track.id).slice(0, 2);
+                hasUserData = true;
+                console.log('Got user top tracks:', seedTracks);
             }
         } catch (error) {
             console.log('Could not get top tracks:', error.message);
+            
+            // Try short term if medium term fails
+            try {
+                const topTracks = await spotify.getTopTracks('short_term', 5);
+                if (topTracks.items && topTracks.items.length > 0) {
+                    seedTracks = topTracks.items.map(track => track.id).slice(0, 2);
+                    hasUserData = true;
+                    console.log('Got user short-term top tracks:', seedTracks);
+                }
+            } catch (shortTermError) {
+                console.log('Short term tracks also failed:', shortTermError.message);
+            }
         }
         
         // If no top tracks, try to get top artists
         if (seedTracks.length === 0) {
             try {
-                const topArtists = await spotify.getTopArtists('medium_term', 2);
+                const topArtists = await spotify.getTopArtists('medium_term', 3);
                 if (topArtists.items && topArtists.items.length > 0) {
-                    seedArtists = topArtists.items.map(artist => artist.id).slice(0, 2);
+                    seedArtists = topArtists.items.map(artist => artist.id).slice(0, 3);
+                    hasUserData = true;
+                    console.log('Got user top artists:', seedArtists);
                 }
             } catch (error) {
                 console.log('Could not get top artists:', error.message);
             }
         }
         
-        // Always use some popular seeds as fallback to ensure we get results
+        // Popular seeds as backup
         const popularSeeds = [
             '4NHQUGzhtTLFvgF5SZesLK', // Tame Impala
             '1Xyo4u8uXC1ZmMpatF05PJ', // The Weeknd
-            '06HL4z0CvFAxyc27GXpf02'  // Taylor Swift
+            '06HL4z0CvFAxyc27GXpf02', // Taylor Swift
+            '1McMsnEElThX1knmY4oliG', // Olivia Rodrigo
+            '4q3ewBCX7sLwd24euuV69X'  // Bad Bunny
         ];
         
-        // Combine user seeds with popular ones, prioritize user preferences
-        if (seedArtists.length === 0) {
-            seedArtists = popularSeeds.slice(0, 3);
+        // Use user data if available, otherwise popular seeds
+        let finalSeeds = {};
+        if (seedTracks.length > 0) {
+            finalSeeds.seed_tracks = seedTracks.join(',');
+            // Add one popular artist to mix it up
+            finalSeeds.seed_artists = popularSeeds[0];
+        } else if (seedArtists.length > 0) {
+            finalSeeds.seed_artists = seedArtists.join(',');
         } else {
-            // Mix user artists with popular ones
-            seedArtists = [...seedArtists, ...popularSeeds].slice(0, 3);
+            finalSeeds.seed_artists = popularSeeds.slice(0, 3).join(',');
         }
         
-        // Build recommendation parameters with relaxed constraints
+        // Build recommendation parameters
         const params = {
+            ...finalSeeds,
             limit: 50,
             market: appState.currentUser?.country || 'US',
-            min_popularity: 20 // Lower threshold to get more results
+            min_popularity: 20
         };
-        
-        if (seedTracks.length > 0) {
-            params.seed_tracks = seedTracks.join(',');
-        } else {
-            params.seed_artists = seedArtists.join(',');
-        }
         
         console.log('Getting recommendations with params:', params);
         
@@ -372,32 +390,32 @@ async function loadRecommendations() {
             throw new Error('No recommendations received from Spotify');
         }
         
-        console.log(`Received ${recommendationsData.tracks.length} recommendations`);
+        console.log(`Received ${recommendationsData.tracks.length} real recommendations`);
         
-        // Filter out already loved songs, but don't require preview_url
+        // Filter out already loved songs
         const lovedIds = new Set(appState.lovedSongs.map(song => song.id));
         appState.recommendations = recommendationsData.tracks.filter(
             track => !lovedIds.has(track.id)
         );
         
-        // If still no recommendations, create some mock data for demo
-        if (appState.recommendations.length === 0) {
-            appState.recommendations = createMockRecommendations();
-            console.log('Using mock recommendations for demo');
+        appState.currentCardIndex = 0;
+        console.log(`Loaded ${appState.recommendations.length} filtered recommendations`);
+        
+        // Show success message based on personalization
+        if (hasUserData) {
+            showToast('Personalized recommendations loaded!', 'success');
+        } else {
+            showToast('Recommendations loaded based on popular music!', 'success');
         }
         
-        appState.currentCardIndex = 0;
-        console.log(`Loaded ${appState.recommendations.length} recommendations`);
-        
     } catch (error) {
-        console.error('Failed to load recommendations:', error);
+        console.error('Spotify API failed completely:', error);
         
-        // Fallback to mock data if API fails
+        // Only use mock data if Spotify completely fails
         appState.recommendations = createMockRecommendations();
         appState.currentCardIndex = 0;
-        console.log('Using mock recommendations due to API error');
         
-        showToast('Using demo songs. Connect your Spotify for personalized recommendations.', 'warning');
+        showToast('Spotify API unavailable. Using demo songs.', 'warning');
     }
 }
 
