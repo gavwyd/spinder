@@ -7,7 +7,8 @@ const SPOTIFY_CONFIG = {
         'user-read-email', 
         'user-top-read',
         'playlist-modify-public',
-        'playlist-modify-private'
+        'playlist-modify-private',
+        'user-library-modify'
     ].join(' ')
 };
 
@@ -314,83 +315,78 @@ async function loadRecommendations() {
         let seedArtists = [];
         let hasUserData = false;
         
-        // Try to get user's top tracks for personalized recommendations
-        try {
-            const topTracks = await spotify.getTopTracks('medium_term', 5);
-            if (topTracks.items && topTracks.items.length > 0) {
-                seedTracks = topTracks.items.map(track => track.id).slice(0, 2);
-                hasUserData = true;
-                console.log('Got user top tracks:', seedTracks);
-            }
-        } catch (error) {
-            console.log('Could not get top tracks:', error.message);
-            
-            // Try short term if medium term fails
-            try {
-                const topTracks = await spotify.getTopTracks('short_term', 5);
-                if (topTracks.items && topTracks.items.length > 0) {
-                    seedTracks = topTracks.items.map(track => track.id).slice(0, 2);
-                    hasUserData = true;
-                    console.log('Got user short-term top tracks:', seedTracks);
+        console.log('Starting recommendation loading...');
+        
+        // Try getting user's top tracks (with different time ranges)
+        for (const timeRange of ['short_term', 'medium_term', 'long_term']) {
+            if (seedTracks.length === 0) {
+                try {
+                    console.log(`Trying top tracks with ${timeRange}...`);
+                    const topTracks = await spotify.getTopTracks(timeRange, 5);
+                    if (topTracks.items && topTracks.items.length > 0) {
+                        seedTracks = topTracks.items.map(track => track.id).slice(0, 2);
+                        hasUserData = true;
+                        console.log(`Success! Got ${seedTracks.length} seed tracks from ${timeRange}:`, seedTracks);
+                        break;
+                    }
+                } catch (error) {
+                    console.log(`Failed to get ${timeRange} top tracks:`, error.message);
                 }
-            } catch (shortTermError) {
-                console.log('Short term tracks also failed:', shortTermError.message);
             }
         }
         
-        // If no top tracks, try to get top artists
+        // If no tracks, try artists
         if (seedTracks.length === 0) {
-            try {
-                const topArtists = await spotify.getTopArtists('medium_term', 3);
-                if (topArtists.items && topArtists.items.length > 0) {
-                    seedArtists = topArtists.items.map(artist => artist.id).slice(0, 3);
-                    hasUserData = true;
-                    console.log('Got user top artists:', seedArtists);
+            for (const timeRange of ['medium_term', 'short_term', 'long_term']) {
+                try {
+                    console.log(`Trying top artists with ${timeRange}...`);
+                    const topArtists = await spotify.getTopArtists(timeRange, 3);
+                    if (topArtists.items && topArtists.items.length > 0) {
+                        seedArtists = topArtists.items.map(artist => artist.id).slice(0, 3);
+                        hasUserData = true;
+                        console.log(`Success! Got ${seedArtists.length} seed artists from ${timeRange}:`, seedArtists);
+                        break;
+                    }
+                } catch (error) {
+                    console.log(`Failed to get ${timeRange} top artists:`, error.message);
                 }
-            } catch (error) {
-                console.log('Could not get top artists:', error.message);
             }
-        }
-        
-        // Popular seeds as backup
-        const popularSeeds = [
-            '4NHQUGzhtTLFvgF5SZesLK', // Tame Impala
-            '1Xyo4u8uXC1ZmMpatF05PJ', // The Weeknd
-            '06HL4z0CvFAxyc27GXpf02', // Taylor Swift
-            '1McMsnEElThX1knmY4oliG', // Olivia Rodrigo
-            '4q3ewBCX7sLwd24euuV69X'  // Bad Bunny
-        ];
-        
-        // Use user data if available, otherwise popular seeds
-        let finalSeeds = {};
-        if (seedTracks.length > 0) {
-            finalSeeds.seed_tracks = seedTracks.join(',');
-            // Add one popular artist to mix it up
-            finalSeeds.seed_artists = popularSeeds[0];
-        } else if (seedArtists.length > 0) {
-            finalSeeds.seed_artists = seedArtists.join(',');
-        } else {
-            finalSeeds.seed_artists = popularSeeds.slice(0, 3).join(',');
         }
         
         // Build recommendation parameters
-        const params = {
-            ...finalSeeds,
+        let params = {
             limit: 50,
             market: appState.currentUser?.country || 'US',
-            min_popularity: 20
+            min_popularity: 10
         };
         
-        console.log('Getting recommendations with params:', params);
-        
-        // Get recommendations
-        const recommendationsData = await spotify.getRecommendations(params);
-        
-        if (!recommendationsData.tracks || recommendationsData.tracks.length === 0) {
-            throw new Error('No recommendations received from Spotify');
+        if (seedTracks.length > 0) {
+            params.seed_tracks = seedTracks.join(',');
+            // Add a popular artist to diversify
+            params.seed_artists = '06HL4z0CvFAxyc27GXpf02'; // Taylor Swift
+        } else if (seedArtists.length > 0) {
+            params.seed_artists = seedArtists.join(',');
+        } else {
+            // Fallback to completely popular seeds
+            console.log('No user data available, using popular seeds...');
+            params.seed_artists = [
+                '4NHQUGzhtTLFvgF5SZesLK', // Tame Impala
+                '1Xyo4u8uXC1ZmMpatF05PJ', // The Weeknd
+                '06HL4z0CvFAxyc27GXpf02'  // Taylor Swift
+            ].join(',');
         }
         
-        console.log(`Received ${recommendationsData.tracks.length} real recommendations`);
+        console.log('Final recommendation parameters:', params);
+        
+        // Get recommendations from Spotify
+        const recommendationsData = await spotify.getRecommendations(params);
+        console.log('Raw recommendations response:', recommendationsData);
+        
+        if (!recommendationsData.tracks || recommendationsData.tracks.length === 0) {
+            throw new Error('Spotify returned empty recommendations');
+        }
+        
+        console.log(`Spotify returned ${recommendationsData.tracks.length} recommendations`);
         
         // Filter out already loved songs
         const lovedIds = new Set(appState.lovedSongs.map(song => song.id));
@@ -399,23 +395,27 @@ async function loadRecommendations() {
         );
         
         appState.currentCardIndex = 0;
-        console.log(`Loaded ${appState.recommendations.length} filtered recommendations`);
+        console.log(`Final filtered recommendations: ${appState.recommendations.length}`);
         
         // Show success message based on personalization
         if (hasUserData) {
-            showToast('Personalized recommendations loaded!', 'success');
+            showToast('Loaded personalized recommendations based on your music taste!', 'success');
         } else {
-            showToast('Recommendations loaded based on popular music!', 'success');
+            showToast('Loaded popular recommendations. Listen to more music to get personalized ones!', 'success');
         }
         
     } catch (error) {
-        console.error('Spotify API failed completely:', error);
+        console.error('Complete Spotify API failure:', error);
+        console.error('Error details:', {
+            message: error.message,
+            stack: error.stack
+        });
         
-        // Only use mock data if Spotify completely fails
+        // Use mock data as complete fallback
         appState.recommendations = createMockRecommendations();
         appState.currentCardIndex = 0;
         
-        showToast('Spotify API unavailable. Using demo songs.', 'warning');
+        showToast('Spotify API unavailable. Using demo songs for testing.', 'warning');
     }
 }
 
@@ -716,42 +716,81 @@ async function updateSpotifyPlaylist() {
     
     try {
         const spotify = new SpotifyAPI(appState.accessToken);
+        const latestSong = appState.lovedSongs[0];
+        
+        console.log('Updating playlist with song:', latestSong);
+        
+        // Skip playlist operations for mock data
+        if (latestSong.id.includes('mock')) {
+            console.log('Skipping playlist update for mock song');
+            return;
+        }
         
         // Create playlist if it doesn't exist
         if (!appState.playlistId) {
             try {
+                console.log('Creating new playlist...');
                 const playlist = await spotify.createPlaylist(
                     appState.currentUser.id,
                     'Spinder Discoveries',
-                    'Songs discovered and loved through Spinder'
+                    'Songs discovered and loved through Spinder - your musical journey!'
                 );
                 
+                console.log('Playlist created:', playlist);
                 appState.setPlaylistId(playlist.id);
                 elements.playlistStatus.style.display = 'flex';
                 showToast('Created "Spinder Discoveries" playlist!', 'success');
             } catch (error) {
                 console.error('Failed to create playlist:', error);
-                showToast('Could not create playlist. Check your permissions.', 'warning');
+                showToast('Could not create playlist. Check your Spotify permissions.', 'error');
                 return;
             }
         }
         
-        // Add the latest song to playlist (only for real Spotify tracks, not mock data)
-        const latestSong = appState.lovedSongs[0];
-        if (latestSong.uri && !latestSong.uri.includes('mock')) {
-            try {
-                await spotify.addTracksToPlaylist(appState.playlistId, [latestSong.uri]);
-            } catch (error) {
-                console.error('Failed to add track to playlist:', error);
-                // Don't show error toast for this as it's not critical
+        // Add the song to playlist
+        try {
+            console.log('Adding track to playlist:', {
+                playlistId: appState.playlistId,
+                trackUri: latestSong.uri,
+                trackName: latestSong.name
+            });
+            
+            const result = await spotify.addTracksToPlaylist(appState.playlistId, [latestSong.uri]);
+            console.log('Successfully added track to playlist:', result);
+            
+        } catch (addError) {
+            console.error('Failed to add track to playlist:', addError);
+            
+            // Try to get more details about the error
+            if (addError.message.includes('401')) {
+                showToast('Session expired. Please re-login to add songs to playlist.', 'warning');
+            } else if (addError.message.includes('403')) {
+                showToast('Permission denied. Please check your Spotify app permissions.', 'warning');
+            } else {
+                console.error('Add track error details:', {
+                    message: addError.message,
+                    playlistId: appState.playlistId,
+                    uri: latestSong.uri
+                });
+                showToast('Could not add song to playlist. API error.', 'warning');
             }
         }
         
     } catch (error) {
-        console.error('Failed to update playlist:', error);
-        // Only show error if it's a critical failure
+        console.error('Playlist update failed:', error);
+        
         if (error.message === 'UNAUTHORIZED') {
             showToast('Session expired. Please login again.', 'error');
+            // Trigger re-login
+            setTimeout(() => {
+                clearToken();
+                window.location.reload();
+            }, 2000);
+        } else {
+            console.error('General playlist error:', {
+                message: error.message,
+                stack: error.stack
+            });
         }
     }
 }
